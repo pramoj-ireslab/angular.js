@@ -20,7 +20,7 @@
      <file name="index.html">
        <div id="scrollArea" ng-controller="ScrollCtrl">
          <a ng-click="gotoBottom()">Go to bottom</a>
-         <a id="bottom"></a> You're at the bottom!
+         <a id="bottom">You're at the bottom!</a>
        </div>
      </file>
      <file name="script.js">
@@ -44,6 +44,7 @@
        #bottom {
          display: block;
          margin-top: 2000px;
+         padding-top: 50px;
        }
      </file>
    </example>
