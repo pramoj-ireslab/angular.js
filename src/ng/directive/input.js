@@ -2204,6 +2204,8 @@ var NgModelController = ['$scope', '$exceptionHandler', '$attrs', '$element', '$
       ctrl.$modelValue = modelValue;
       writeToModelIfNeeded();
     }
+
+    viewValue = ctrl.$$lastCommittedViewValue;
     ctrl.$$runValidators(parserValid, modelValue, viewValue, function(allValid) {
       if (!allowInvalid) {
         // Note: Don't check ctrl.$valid here, as we could have

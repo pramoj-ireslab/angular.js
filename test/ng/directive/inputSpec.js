@@ -1435,6 +1435,31 @@ describe('input', function() {
         attrs = $attrs;
       };
     });
+
+    $compileProvider.directive('renderInParse', function() {
+      return {
+        require: 'ngModel',
+        link: function(scope, element, attrs, ngModelCtrl) {
+          dump('directive');
+          ngModelCtrl.$parsers.push(function(value) {
+            dump(value)
+
+            if (value && value.substr(-1) === 'b') {
+              dump('reset viewValue');
+              value = 'a';
+              ngModelCtrl.$setViewValue(value);
+              ngModelCtrl.$render();
+              //This doesn't work because the parse error prevents the validator
+              //from setting the validation errors
+              // value = undefined;
+            }
+
+            dump('normal parse returns', value);
+            return value;
+          });
+        }
+      };
+    });
   }));
 
   beforeEach(inject(function($injector, _$sniffer_, _$browser_) {
@@ -2092,6 +2117,20 @@ describe('input', function() {
       changeInputValueTo('a');
       expect(scope.form.alias.$viewValue).toBe('a');
       expect(scope.form.alias.$commitViewValue).toHaveBeenCalledOnce();
+      expect(scope.form.alias.$error.minlength).toBe(true);
+    });
+
+    it('should always use the last committed viewValue to validate', function() {
+      compileInput(
+        '<input type="text" ng-model="name" name="alias" render-in-parse ng-minlength="2" ' +
+          'ng-model-options="{ allowInvalid: true }" />');
+
+      spyOn(scope.form.alias, '$commitViewValue').andCallThrough();
+      spyOn(scope.form.alias.$validators, 'minlength').andCallThrough();
+      changeInputValueTo('ab');
+      expect(scope.form.alias.$viewValue).toBe('a');
+      expect(scope.form.alias.$commitViewValue).toHaveBeenCalled();
+      expect(scope.form.alias.$validators.minlength).toHaveBeenCalledWith('a', 'a');
       expect(scope.form.alias.$error.minlength).toBe(true);
     });
 
