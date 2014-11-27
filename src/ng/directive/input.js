@@ -2275,9 +2275,14 @@ var NgModelController = ['$scope', '$exceptionHandler', '$attrs', '$element', '$
    */
   this.$setViewValue = function(value, trigger) {
     ctrl.$viewValue = value;
-    if (!ctrl.$options || ctrl.$options.updateOnDefault) {
-      ctrl.$$debounceViewValueCommit(trigger);
+
+    // If options are set and the the default update trigger is not one of them,
+    // do not trigger committing the viewValue (because it is handled asynchronously)
+    if (ctrl.$options && !ctrl.$options.updateOnDefault) {
+      return;
     }
+
+    ctrl.$$debounceViewValueCommit(trigger);
   };
 
   this.$$debounceViewValueCommit = function(trigger) {

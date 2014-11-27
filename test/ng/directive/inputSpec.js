@@ -2082,6 +2082,20 @@ describe('input', function() {
       expect(inputElm.val()).toBe('');
     }));
 
+
+    it('should immediately commit the viewValue with options unrelated to update debounce / triggers', function() {
+      compileInput(
+        '<input type="text" ng-model="name" name="alias" ng-minlength="2" ' +
+          'ng-model-options="{ allowInvalid: true }" />');
+
+      spyOn(scope.form.alias, '$commitViewValue').andCallThrough();
+      changeInputValueTo('a');
+      expect(scope.form.alias.$viewValue).toBe('a');
+      expect(scope.form.alias.$commitViewValue).toHaveBeenCalledOnce();
+      expect(scope.form.alias.$error.minlength).toBe(true);
+    });
+
+
     it('should not try to invoke a model if getterSetter is false', function() {
       compileInput(
         '<input type="text" ng-model="name" ' +
