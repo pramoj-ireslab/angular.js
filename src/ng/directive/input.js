@@ -2025,6 +2025,7 @@ var NgModelController = ['$scope', '$exceptionHandler', '$attrs', '$element', '$
     }
 
     var viewValue = ctrl.$$lastCommittedViewValue;
+    dump('validate', ctrl.$$lastCommittedViewValue);
     // Note: we use the $$rawModelValue as $modelValue might have been
     // set to undefined during a view -> model update that found validation
     // errors. We can't parse the view here, since that could change
@@ -2161,6 +2162,7 @@ var NgModelController = ['$scope', '$exceptionHandler', '$attrs', '$element', '$
    */
   this.$commitViewValue = function() {
     var viewValue = ctrl.$viewValue;
+    dump('commit', viewValue);
 
     $timeout.cancel(pendingDebounce);
 
@@ -2168,9 +2170,11 @@ var NgModelController = ['$scope', '$exceptionHandler', '$attrs', '$element', '$
     // a native validator on the element. In this case the validation state may have changed even though
     // the viewValue has stayed empty.
     if (ctrl.$$lastCommittedViewValue === viewValue && (viewValue !== '' || !ctrl.$$hasNativeValidators)) {
+      dump('same');
       return;
     }
     ctrl.$$lastCommittedViewValue = viewValue;
+    dump('lastCommittedViewValue', ctrl.$$lastCommittedViewValue);
 
     // change to dirty
     if (ctrl.$pristine) {
@@ -2180,6 +2184,7 @@ var NgModelController = ['$scope', '$exceptionHandler', '$attrs', '$element', '$
   };
 
   this.$$parseAndValidate = function() {
+    //viewValue is cached here, so a "replaced" value will still be wrong after parsers are done
     var viewValue = ctrl.$$lastCommittedViewValue;
     var modelValue = viewValue;
     var parserValid = isUndefined(modelValue) ? undefined : true;
@@ -2735,6 +2740,7 @@ var minlengthDirective = function() {
         ctrl.$validate();
       });
       ctrl.$validators.minlength = function(modelValue, viewValue) {
+        dump('model', modelValue, 'view', viewValue);
         return ctrl.$isEmpty(viewValue) || viewValue.length >= minlength;
       };
     }

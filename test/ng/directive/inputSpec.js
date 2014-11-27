@@ -1727,7 +1727,6 @@ describe('input', function() {
 
 
   describe('ngModelOptions attributes', function() {
-
     it('should allow overriding the model update trigger event on text inputs', function() {
       compileInput(
           '<input type="text" ng-model="name" name="alias" ' +
@@ -2108,19 +2107,20 @@ describe('input', function() {
     }));
 
 
-    it('should immediately commit the viewValue with options unrelated to update debounce / triggers', function() {
+    iit('should immediately commit the viewValue with options unrelated to update debounce / triggers', function() {
       compileInput(
         '<input type="text" ng-model="name" name="alias" ng-minlength="2" ' +
           'ng-model-options="{ allowInvalid: true }" />');
 
       spyOn(scope.form.alias, '$commitViewValue').andCallThrough();
+
       changeInputValueTo('a');
       expect(scope.form.alias.$viewValue).toBe('a');
       expect(scope.form.alias.$commitViewValue).toHaveBeenCalledOnce();
       expect(scope.form.alias.$error.minlength).toBe(true);
     });
 
-    it('should always use the last committed viewValue to validate', function() {
+    iit('should always use the last committed viewValue to validate', function() {
       compileInput(
         '<input type="text" ng-model="name" name="alias" render-in-parse ng-minlength="2" ' +
           'ng-model-options="{ allowInvalid: true }" />');
