@@ -2,34 +2,37 @@
 
 /* globals getInputCompileHelper: false */
 
-describe('ngModel', function() {
+ddescribe('ngModel', function() {
 
   describe('NgModelController', function() {
     /* global NgModelController: false */
-    var ctrl, scope, ngModelAccessor, element, parentFormCtrl;
+    var ctrl, scope, ngModelAccessor, element, parentFormCtrl, initController;
 
     beforeEach(inject(function($rootScope, $controller) {
       var attrs = {name: 'testAlias', ngModel: 'value'};
 
-      parentFormCtrl = {
-        $$setPending: jasmine.createSpy('$$setPending'),
-        $setValidity: jasmine.createSpy('$setValidity'),
-        $setDirty: jasmine.createSpy('$setDirty'),
-        $$clearControlValidity: noop
+      initController = function() {
+        parentFormCtrl = {
+          $$setPending: jasmine.createSpy('$$setPending'),
+          $setValidity: jasmine.createSpy('$setValidity'),
+          $setDirty: jasmine.createSpy('$setDirty'),
+          $$clearControlValidity: noop
+        };
+
+        element = jqLite('<form><input></form>');
+
+        scope = $rootScope;
+        ngModelAccessor = jasmine.createSpy('ngModel accessor');
+        ctrl = $controller(NgModelController, {
+          $scope: scope,
+          $element: element.find('input'),
+          $attrs: attrs
+        });
+
+        //Assign the mocked parentFormCtrl to the model controller
+        ctrl.$$parentForm = parentFormCtrl;
       };
 
-      element = jqLite('<form><input></form>');
-
-      scope = $rootScope;
-      ngModelAccessor = jasmine.createSpy('ngModel accessor');
-      ctrl = $controller(NgModelController, {
-        $scope: scope,
-        $element: element.find('input'),
-        $attrs: attrs
-      });
-
-      //Assign the mocked parentFormCtrl to the model controller
-      ctrl.$$parentForm = parentFormCtrl;
     }));
 
 
@@ -37,6 +40,10 @@ describe('ngModel', function() {
       dealoc(element);
     });
 
+    describe('by default', function() {
+      beforeEach(function() {
+        initController();
+      });
 
     it('should init the properties', function() {
       expect(ctrl.$untouched).toBe(true);
@@ -603,6 +610,77 @@ describe('ngModel', function() {
         expect(ctrl.$modelValue).toBeNaN();
 
       }));
+    });
+    });
+
+      describe('watch types', function() {
+
+        var formatSpy;
+
+        beforeEach(function() {
+          initController();
+
+          formatSpy = jasmine.createSpy('formatter').andCallFake(function() {
+            return arguments[0];
+          });
+          ctrl.$formatters.push(formatSpy);
+        });
+
+        iit('should  not pick up property changes if $modelType = "simple"', function() {
+          ctrl.$modelType = 'simple';
+          ctrl.$$setupModelWatch();
+
+          scope.value = {
+            a: 'c',
+            b: 'd'
+          };
+
+          scope.$digest();
+          expect(formatSpy).toHaveBeenCalledOnce();
+          expect(ctrl.$viewValue).toEqual({
+            a: 'c',
+            b: 'd'
+          });
+
+          formatSpy.reset();
+          scope.value.a = 'x';
+          scope.$digest();
+          //This fails because the $viewValue and the $modelValue are the same
+          //object and get updated regardless of any watches firing
+          expect(formatSpy).not.toHaveBeenCalled();
+          expect(ctrl.$viewValue).toEqual({
+            a: 'c',
+            b: 'd'
+          });
+        });
+
+
+        it('should pick up property changes if $modelType = "object"', function() {
+          ctrl.$modelType = 'object';
+          ctrl.$$setupModelWatch();
+
+          scope.value = {
+            a: 'c',
+            b: 'd'
+          };
+
+          scope.$digest();
+          expect(formatSpy).toHaveBeenCalledOnce();
+          expect(ctrl.$viewValue).toEqual({
+            a: 'c',
+            b: 'd'
+          });
+
+          formatSpy.reset();
+          scope.value.a = 'x';
+          scope.$digest();
+          expect(formatSpy).toHaveBeenCalledOnce();
+          expect(ctrl.$viewValue).toEqual({
+            a: 'x',
+            b: 'd'
+          });
+        });
+
     });
 
 

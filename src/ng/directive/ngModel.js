@@ -239,11 +239,13 @@ var NgModelController = ['$scope', '$exceptionHandler', '$attrs', '$element', '$
   this.$pending = undefined; // keep pending keys here
   this.$name = $interpolate($attr.name || '', false)($scope);
   this.$$parentForm = nullFormCtrl;
+  this.$modelType = 'simple';
 
   var parsedNgModel = $parse($attr.ngModel),
       parsedNgModelAssign = parsedNgModel.assign,
       ngModelGet = parsedNgModel,
       ngModelSet = parsedNgModelAssign,
+      modelValueGetter,
       pendingDebounce = null,
       parserValid,
       ctrl = this;
@@ -542,7 +544,7 @@ var NgModelController = ['$scope', '$exceptionHandler', '$attrs', '$element', '$
         // external validators (e.g. calculated on the server),
         // that just call $setValidity and need the model value
         // to calculate their validity.
-        ctrl.$modelValue = allValid ? modelValue : undefined;
+        ctrl.$modelValue = allValid ? modelValueGetter(modelValue) : undefined;
 
         if (ctrl.$modelValue !== prevModelValue) {
           ctrl.$$writeModelToScope();
@@ -691,14 +693,14 @@ var NgModelController = ['$scope', '$exceptionHandler', '$attrs', '$element', '$
     }
     if (isNumber(ctrl.$modelValue) && isNaN(ctrl.$modelValue)) {
       // ctrl.$modelValue has not been touched yet...
-      ctrl.$modelValue = ngModelGet($scope);
+      ctrl.$modelValue = modelValueGetter(ngModelGet($scope));
     }
     var prevModelValue = ctrl.$modelValue;
     var allowInvalid = ctrl.$options && ctrl.$options.allowInvalid;
     ctrl.$$rawModelValue = modelValue;
 
     if (allowInvalid) {
-      ctrl.$modelValue = modelValue;
+      ctrl.$modelValue = modelValueGetter(modelValue);
       writeToModelIfNeeded();
     }
 
@@ -710,7 +712,7 @@ var NgModelController = ['$scope', '$exceptionHandler', '$attrs', '$element', '$
         // external validators (e.g. calculated on the server),
         // that just call $setValidity and need the model value
         // to calculate their validity.
-        ctrl.$modelValue = allValid ? modelValue : undefined;
+        ctrl.$modelValue = allValid ? modelValueGetter(modelValue) : undefined;
         writeToModelIfNeeded();
       }
     });
@@ -829,9 +831,32 @@ var NgModelController = ['$scope', '$exceptionHandler', '$attrs', '$element', '$
   };
 
   // model -> view
-  $scope.$watch(function ngModelWatch() {
-    return ngModelGet($scope);
-  }, ngModelWatchAction);
+  ctrl.$$setupModelWatch = function() {
+    if (ctrl.$modelType === 'collection') {
+
+      $scope.$watchCollection(ngModelGet, ngModelWatchAction);
+      modelValueGetter = function(modelValue) {
+        return copy(modelValue);
+      };
+    } else if (ctrl.$modelType === 'object') {
+
+      $scope.$watch(function ngModelWatch() {
+        return ngModelGet($scope);
+      }, ngModelWatchAction, true);
+      modelValueGetter = function(modelValue) {
+        return copy(modelValue);
+      };
+
+    } else if (ctrl.$modelType === 'simple') {
+
+      $scope.$watch(function ngModelWatch() {
+        return ngModelGet($scope);
+      }, ngModelWatchAction);
+      modelValueGetter = function(modelValue) {
+        return modelValue;
+      };
+    }
+  };
 
   function ngModelWatchAction(modelValue) {
     // if scope model value and ngModel value are out of sync
@@ -839,13 +864,13 @@ var NgModelController = ['$scope', '$exceptionHandler', '$attrs', '$element', '$
        // checks for NaN is needed to allow setting the model to NaN when there's an asyncValidator
        (ctrl.$modelValue === ctrl.$modelValue || modelValue === modelValue)
     ) {
-      ctrl.$modelValue = ctrl.$$rawModelValue = modelValue;
+      ctrl.$modelValue = ctrl.$$rawModelValue = modelValueGetter(modelValue);
       parserValid = undefined;
 
       var formatters = ctrl.$formatters,
           idx = formatters.length;
 
-      var viewValue = modelValue;
+      var viewValue = ctrl.$modelValue;
       while (idx--) {
         viewValue = formatters[idx](viewValue);
       }
@@ -854,7 +879,7 @@ var NgModelController = ['$scope', '$exceptionHandler', '$attrs', '$element', '$
         ctrl.$viewValue = ctrl.$$lastCommittedViewValue = viewValue;
         ctrl.$render();
 
-        ctrl.$$runValidators(modelValue, viewValue, noop);
+        ctrl.$$runValidators(ctrl.$modelValue, viewValue, noop);
       }
     }
   }
@@ -1051,6 +1076,7 @@ var ngModelDirective = ['$rootScope', function($rootScope) {
               formCtrl = ctrls[1] || modelCtrl.$$parentForm;
 
           modelCtrl.$$setOptions(ctrls[2] && ctrls[2].$options);
+          modelCtrl.$$setupModelWatch();
 
           // notify others, especially parent forms
           formCtrl.$addControl(modelCtrl);
