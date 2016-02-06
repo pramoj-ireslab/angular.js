@@ -23,7 +23,8 @@ var SelectController =
         ['$element', '$scope', '$attrs', function($element, $scope, $attrs) {
 
   var self = this,
-      optionsMap = new HashMap();
+      optionsMap = new HashMap(),
+      selectValueMap = {}; // Keys are the hashed values, values the original values
 
   // If the ngModel doesn't get provided then provide a dummy noop version to prevent errors
   self.ngModelCtrl = noopNgModelController;
@@ -56,7 +57,9 @@ var SelectController =
   // upon whether the select can have multiple values and whether ngOptions is at work.
   self.readValue = function readSingleValue() {
     self.removeUnknownOption();
-    return $element.val();
+    var val = $element.val();
+    // ngValue added option values are stored in the selectValueMap, normal interpolations are not
+    return val in selectValueMap ? selectValueMap[val] : val;
   };
 
 
@@ -116,9 +119,26 @@ var SelectController =
 
   self.registerOption = function(optionScope, optionElement, optionAttrs, interpolateValueFn, interpolateTextFn) {
 
-    if (interpolateValueFn) {
+    if (interpolateValueFn === true) {
+      // The value attribute is set by ngValue
+      var oldVal, hashedVal = NaN;
+      optionAttrs.$observe('value', function valueAttributeObserveAction(newVal) {
+        if (isDefined(hashedVal)) {
+          self.removeOption(oldVal);
+          delete selectValueMap[hashedVal];
+        }
+
+        hashedVal = hashKey(newVal);
+        oldVal = newVal;
+        self.addOption(newVal, optionElement);
+        selectValueMap[hashedVal] = newVal;
+        // Set the attribute directly instead of using optionAttrs.$set - this stops the observer
+        // from firing a second time. Other $observers on value will also get the result of the
+        // ngValue expression, not the hashed value
+        optionElement.attr('value', hashedVal);
+      });
+    } else if (interpolateValueFn) {
       // The value attribute is interpolated
-      var oldVal;
       optionAttrs.$observe('value', function valueAttributeObserveAction(newVal) {
         if (isDefined(oldVal)) {
           self.removeOption(oldVal);
@@ -455,9 +475,13 @@ var optionDirective = ['$interpolate', function($interpolate) {
     restrict: 'E',
     priority: 100,
     compile: function(element, attr) {
-      if (isDefined(attr.value)) {
+      var interpolateValueFn;
+
+      if (isDefined(attr.ngValue)) {
+        interpolateValueFn = true;
+      } else if (isDefined(attr.value)) {
         // If the value attribute is defined, check if it contains an interpolation
-        var interpolateValueFn = $interpolate(attr.value, true);
+        interpolateValueFn = $interpolate(attr.value, true);
       } else {
         // If the value attribute is not defined then we fall back to the
         // text content of the option element, which may be interpolated
